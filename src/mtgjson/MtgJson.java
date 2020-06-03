@@ -5,15 +5,12 @@ import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.UUID;
 
 import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.TreeMultimap;
 import com.google.gson.Gson;
@@ -21,69 +18,54 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 import mtgjson.Card.Format;
+import mtgjson.Card.Legality;
 
 public class MtgJson {
 
 	public static void main(String[] args) throws IOException {
 		Gson gson = new GsonBuilder().disableHtmlEscaping().create();
 		Collection<Expansion> expansions;
-		try (Reader reader = Files.newBufferedReader(Paths.get(
-				"AllPrintings.json"))) {
+		try (Reader reader = Files.newBufferedReader(Paths.get("AllPrintings.json"))) {
 			Map<String, Expansion> json = gson.fromJson(reader,
 					new TypeToken<Map<String, Expansion>>() {}.getType());
 			expansions = json.values();
 		}
-		Map<String, Set<Printing>> allPrintings = new HashMap<>();
 
+		SetMultimap<String, Printing> printings = TreeMultimap.create();
 		SetMultimap<Integer, String> momir = TreeMultimap.create();
 
-		Multimap<String, Printing> notMtgo = TreeMultimap.create();
-		
 		for (Expansion expansion : expansions) {
 			for (Card card : expansion.cards) {
-				if (card.legalities.containsKey(Format.legacy) 
+				if (notBannedInLegacy(card)
 						&& card.types.contains(Card.Type.Creature)
+						&& card.isMtgo
 						&& isReal(card)) {
-					if (card.isMtgo) {
-						momir.put(card.convertedManaCost.intValue(), card.name);
-					} else {
-						notMtgo.put(card.name, new Printing(card, expansion));
-					}
+					momir.put(card.convertedManaCost.intValue(), card.name);
 				}
 
-				Set<Printing> printings = allPrintings.computeIfAbsent(card.name,
-						key -> new TreeSet<>());
-				Printing printing = new Printing(card, expansion);
-				printings.add(printing);
+				printings.put(card.name, new Printing(card, expansion));
 			}
 		}
+
 		for (Entry<Integer, Collection<String>> entry : momir.asMap().entrySet()) {
 			System.out.println(entry.getKey() + ": " + entry.getValue().size() + " cards");
 		}
-		
-		notMtgo.keySet().removeAll(momir.values());
-		
-		System.out.println(notMtgo);
-		
-		// System.out.println(gson.toJson(momir.asMap()));
+	}
+
+	private static boolean notBannedInLegacy(Card card) {
+		Legality legality = card.legalities.get(Format.legacy);
+		return legality == Legality.Legal || legality == Legality.Restricted;
 	}
 
 	private static boolean isReal(Card card) {
-		switch (card.layout) {
-		case flip:
-		case transform:
-			return card.name.equals(card.names.get(0));
-		case meld:
-			return !card.name.equals(card.names.get(1));
-		default:
-			return true;
-		}
+		return card.names.isEmpty() || !card.name.equals(card.names.get(1));
 	}
+
 
 	static class Printing implements Comparable<Printing> {
 
-		private final Card card;
-		private final Expansion expansion;
+		Card card;
+		Expansion expansion;
 
 		Printing(Card card, Expansion expansion) {
 			this.card = card;
@@ -102,7 +84,7 @@ public class MtgJson {
 			}
 			Printing that = (Printing) obj;
 			return this.expansion.equals(that.expansion)
-					&& Objects.equals(this.card.number, that.card.number);
+					&& this.card.number.equals(that.card.number);
 		}
 
 		@Override

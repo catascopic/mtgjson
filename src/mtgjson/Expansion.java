@@ -24,6 +24,7 @@ public class Expansion implements Comparable<Expansion> {
 	boolean isFoilOnly;
 	boolean isOnlineOnly;
 	boolean isPartialPreview;
+	String parentCode;
 
 	@Override
 	public int compareTo(Expansion o) {

@@ -1,6 +1,7 @@
 package mtgjson;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -14,7 +15,7 @@ import com.google.gson.stream.JsonWriter;
 public class Card implements Comparable<Card> {
 
 	String name;
-	List<String> names;
+	List<String> names = Collections.emptyList();
 	@JsonAdapter(UUIDAdapter.class)
 	UUID scryfallId;
 	@JsonAdapter(CollectorNumberAdapter.class)
