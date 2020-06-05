@@ -32,7 +32,8 @@ public class Card implements Comparable<Card> {
 	boolean isOnlineOnly;
 	boolean isPaper;
 	boolean isPromo;
-	
+	boolean isOversized;
+
 	boolean isMtgo;
 
 	@Override

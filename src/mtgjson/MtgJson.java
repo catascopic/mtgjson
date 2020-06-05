@@ -12,12 +12,14 @@ import java.util.UUID;
 
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Multimaps;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.TreeMultimap;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.reflect.TypeToken;
 
+import mtgjson.Card.BorderColor;
 import mtgjson.Card.CollectorNumberAdapter;
 import mtgjson.Card.Format;
 import mtgjson.Card.Layout;
@@ -33,24 +35,19 @@ public class MtgJson {
 			expansions = json.values();
 		}
 
-		TreeMultimap<String, Printing> printings = TreeMultimap.create();
+		TreeMultimap<String, Printing> printings = TreeMultimap.create(
+				Ordering.natural(), PrintingOrder::latestBoosterPrinting);
 		TreeMultimap<String, Printing> meld = TreeMultimap.create();
 
 		for (Expansion expansion : expansions) {
-
-			if (!expansion.isOnlineOnly
-					&& !expansion.isForeignOnly
-					&& !expansion.isPartialPreview
-					&& !expansion.name.contains("Salvat")
-					&& expansion.type != Expansion.Type.memorabilia) {
+			if (isReal(expansion)) {
 				for (Card card : expansion.cards) {
-					if (card.legalities.containsKey(Format.legacy)) {
-						if (isReal(card)) {
+					if (isReal(card)) {
+						if (isRepresentative(card)) {
 							printings.put(getName(card), new Printing(card, expansion));
 						} else if (card.layout == Layout.meld) {
 							meld.put(getName(card), new Printing(card, expansion));
 						}
-
 					}
 				}
 			}
@@ -73,23 +70,51 @@ public class MtgJson {
 		}
 	}
 
+	private static boolean isReal(Expansion expansion) {
+		return !expansion.isOnlineOnly
+				&& !expansion.isForeignOnly
+				&& !expansion.isPartialPreview
+				&& !expansion.name.contains("Salvat");
+	}
+
 	private static boolean isReal(Card card) {
+		return card.legalities.containsKey(Format.legacy)
+				&& !card.isOversized
+				&& !card.isOnlineOnly
+				&& card.borderColor != BorderColor.gold;
+	}
+
+	private static boolean isRepresentative(Card card) {
 		return card.names.isEmpty() || !card.name.equals(card.names.get(1));
 	}
+
 
 	private static Tier getTier(Expansion expansion) {
 		switch (expansion.type) {
 		case core:
 		case expansion:
+			return Tier.STANDARD_RELEASE;
 		case draft_innovation:
 			return Tier.BOOSTER_RELEASE;
-		case starter:
-			return Tier.STARTER;
 		case masters:
 			return Tier.BOOSTER_REPRTINT;
 		case commander:
 		case planechase:
-			return Tier.NON_BOOSTER_RELEASE;
+			return expansion.name.contains("Anthology")
+					? Tier.DECK
+					: Tier.NON_BOOSTER_RELEASE;
+		case from_the_vault:
+		case masterpiece:
+		case promo:
+		case spellbook:
+			return Tier.SPECIAL;
+		case starter:
+			return Tier.STARTER;
+		case archenemy:
+		case box:
+		case duel_deck:
+		case premium_deck:
+			return Tier.DECK;
 		default:
 			return Tier.OTHER;
 		}
@@ -115,14 +140,17 @@ public class MtgJson {
 	}
 
 	enum Tier {
+		STANDARD_RELEASE,
 		BOOSTER_RELEASE,
 		STARTER,
 		NON_BOOSTER_RELEASE,
 		BOOSTER_REPRTINT,
+		SPECIAL,
+		DECK,
 		OTHER;
 	}
 
-	private static class Printing implements Comparable<Printing> {
+	static class Printing implements Comparable<Printing> {
 
 		Card card;
 		Expansion expansion;
