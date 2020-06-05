@@ -44,14 +44,31 @@ public class Expansion implements Comparable<Expansion> {
 
 		expansion,
 		core,
-		starter,
 		draft_innovation,
+		
+		starter,
+
 		masters,
+		
 		commander,
 		planechase,
+		
+		from_the_vault,
+		masterpiece, 
+		spellbook,
+		promo, 
 
-		archenemy, box, duel_deck, from_the_vault, funny, masterpiece, memorabilia, spellbook,
-		premium_deck, promo, token, treasure_chest, vanguard;
+		premium_deck, 
+		duel_deck, 
+		archenemy,
+		box,
+		
+		funny,
+		memorabilia,
+		
+		token, 
+		treasure_chest,
+		vanguard;
 	}
 
 	public class LocalDateAdapter extends TypeAdapter<LocalDate> {

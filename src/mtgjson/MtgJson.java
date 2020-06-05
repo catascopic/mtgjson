@@ -1,24 +1,26 @@
 package mtgjson;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.UUID;
 
 import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.SetMultimap;
+import com.google.common.collect.Multimaps;
 import com.google.common.collect.TreeMultimap;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.reflect.TypeToken;
 
+import mtgjson.Card.CollectorNumberAdapter;
 import mtgjson.Card.Format;
-import mtgjson.Card.Legality;
+import mtgjson.Card.Layout;
 
 public class MtgJson {
 
@@ -31,38 +33,96 @@ public class MtgJson {
 			expansions = json.values();
 		}
 
-		SetMultimap<String, Printing> printings = TreeMultimap.create();
-		SetMultimap<Integer, String> momir = TreeMultimap.create();
+		TreeMultimap<String, Printing> printings = TreeMultimap.create();
+		TreeMultimap<String, Printing> meld = TreeMultimap.create();
 
 		for (Expansion expansion : expansions) {
-			for (Card card : expansion.cards) {
-				if (notBannedInLegacy(card)
-						&& card.types.contains(Card.Type.Creature)
-						&& card.isMtgo
-						&& isReal(card)) {
-					momir.put(card.convertedManaCost.intValue(), card.name);
-				}
 
-				printings.put(card.name, new Printing(card, expansion));
+			if (!expansion.isOnlineOnly
+					&& !expansion.isForeignOnly
+					&& !expansion.isPartialPreview
+					&& !expansion.name.contains("Salvat")
+					&& expansion.type != Expansion.Type.memorabilia) {
+				for (Card card : expansion.cards) {
+					if (card.legalities.containsKey(Format.legacy)) {
+						if (isReal(card)) {
+							printings.put(getName(card), new Printing(card, expansion));
+						} else if (card.layout == Layout.meld) {
+							meld.put(getName(card), new Printing(card, expansion));
+						}
+
+					}
+				}
 			}
 		}
 
-		for (Entry<Integer, Collection<String>> entry : momir.asMap().entrySet()) {
-			System.out.println(entry.getKey() + ": " + entry.getValue().size() + " cards");
+		try (BufferedWriter writer = Files.newBufferedWriter(Paths.get("printings.jsonp"))) {
+			writer.write("initPrintings(");
+			gson.toJson(Multimaps.transformValues(printings, Image::new).asMap(), writer);
+			writer.write(");");
 		}
 	}
 
-	private static boolean notBannedInLegacy(Card card) {
-		Legality legality = card.legalities.get(Format.legacy);
-		return legality == Legality.Legal || legality == Legality.Restricted;
+	private static String getName(Card card) {
+		switch (card.layout) {
+		case split:
+		case aftermath:
+			return String.join(" & ", card.names);
+		default:
+			return card.name;
+		}
 	}
 
 	private static boolean isReal(Card card) {
 		return card.names.isEmpty() || !card.name.equals(card.names.get(1));
 	}
 
+	private static Tier getTier(Expansion expansion) {
+		switch (expansion.type) {
+		case core:
+		case expansion:
+		case draft_innovation:
+			return Tier.BOOSTER_RELEASE;
+		case starter:
+			return Tier.STARTER;
+		case masters:
+			return Tier.BOOSTER_REPRTINT;
+		case commander:
+		case planechase:
+			return Tier.NON_BOOSTER_RELEASE;
+		default:
+			return Tier.OTHER;
+		}
+	}
 
-	static class Printing implements Comparable<Printing> {
+	private static class Image {
+
+		UUID id;
+		String code;
+		@JsonAdapter(CollectorNumberAdapter.class)
+		CollectorNumber number;
+		Boolean back;
+		UUID meld;
+
+		Image(Printing printing) {
+			this.id = printing.card.scryfallId;
+			this.code = printing.expansion.code;
+			this.number = printing.card.number;
+			if (printing.card.layout == Layout.transform) {
+				back = true;
+			}
+		}
+	}
+
+	enum Tier {
+		BOOSTER_RELEASE,
+		STARTER,
+		NON_BOOSTER_RELEASE,
+		BOOSTER_REPRTINT,
+		OTHER;
+	}
+
+	private static class Printing implements Comparable<Printing> {
 
 		Card card;
 		Expansion expansion;
@@ -70,6 +130,13 @@ public class MtgJson {
 		Printing(Card card, Expansion expansion) {
 			this.card = card;
 			this.expansion = expansion;
+		}
+
+		Tier getTier() {
+			if (card.number.number > expansion.baseSetSize) {
+				return Tier.OTHER;
+			}
+			return MtgJson.getTier(expansion);
 		}
 
 		@Override
@@ -90,7 +157,8 @@ public class MtgJson {
 		@Override
 		public int compareTo(Printing o) {
 			return ComparisonChain.start()
-					.compare(expansion, o.expansion)
+					.compare(getTier(), o.getTier())
+					.compare(expansion.releaseDate, o.expansion.releaseDate)
 					.compare(card.number, o.card.number)
 					.result();
 		}
