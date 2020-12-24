@@ -2,6 +2,7 @@ package mtgjson;
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 
 import com.google.common.collect.ComparisonChain;
@@ -12,9 +13,9 @@ import com.google.gson.stream.JsonWriter;
 
 public class Expansion implements Comparable<Expansion> {
 
-	String name;
+	String name = "";
 	String code;
-	List<Card> cards;
+	List<Card> cards = Collections.emptyList();
 	@JsonAdapter(LocalDateAdapter.class)
 	LocalDate releaseDate;
 	Integer baseSetSize;

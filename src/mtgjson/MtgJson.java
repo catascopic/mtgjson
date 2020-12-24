@@ -12,7 +12,6 @@ import java.util.UUID;
 
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Multimaps;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.TreeMultimap;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -35,8 +34,7 @@ public class MtgJson {
 			expansions = json.values();
 		}
 
-		TreeMultimap<String, Printing> printings = TreeMultimap.create(
-				Ordering.natural(), PrintingOrder::latestBoosterPrinting);
+		TreeMultimap<String, Printing> printings = TreeMultimap.create();
 		TreeMultimap<String, Printing> meld = TreeMultimap.create();
 
 		for (Expansion expansion : expansions) {
@@ -130,7 +128,7 @@ public class MtgJson {
 		UUID meld;
 
 		Image(Printing printing) {
-			this.id = printing.card.scryfallId;
+			this.id = printing.card.identifiers.scryfallId;
 			this.code = printing.expansion.code;
 			this.number = printing.card.number;
 			if (printing.card.layout == Layout.transform) {

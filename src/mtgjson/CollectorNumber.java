@@ -15,13 +15,19 @@ public class CollectorNumber implements Comparable<CollectorNumber> {
 
 	public CollectorNumber(String number) {
 		int start = DIGIT.indexIn(number);
-		int end = DIGIT.negate().indexIn(number, start);
-		if (end == -1) {
-			end = number.length();
+		if (start == -1) {
+			this.prefix = number;
+			this.number = 0;
+			this.suffix = "";
+		} else {
+			int end = DIGIT.negate().indexIn(number, start);
+			if (end == -1) {
+				end = number.length();
+			}
+			this.prefix = number.substring(0, start);
+			this.number = Integer.parseInt(number.substring(start, end));
+			this.suffix = number.substring(end);
 		}
-		this.prefix = number.substring(0, start);
-		this.number = Integer.parseInt(number.substring(start, end));
-		this.suffix = number.substring(end);
 	}
 
 	@Override

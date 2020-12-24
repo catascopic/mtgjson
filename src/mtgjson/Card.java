@@ -1,12 +1,12 @@
 package mtgjson;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.google.common.base.Splitter;
 import com.google.gson.TypeAdapter;
 import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.stream.JsonReader;
@@ -15,13 +15,14 @@ import com.google.gson.stream.JsonWriter;
 public class Card implements Comparable<Card> {
 
 	String name;
-	List<String> names = Collections.emptyList();
-	@JsonAdapter(UUIDAdapter.class)
-	UUID scryfallId;
+	String faceName;
+	String text = "";
+	Identifiers identifiers;
 	@JsonAdapter(CollectorNumberAdapter.class)
 	CollectorNumber number;
 	BorderColor borderColor;
 	Layout layout;
+	String artist;
 	Map<Format, Legality> legalities;
 
 	HashSet<Type> types;
@@ -60,6 +61,11 @@ public class Card implements Comparable<Card> {
 		return name;
 	}
 
+	public static class Identifiers {
+		@JsonAdapter(UUIDAdapter.class)
+		UUID scryfallId;
+	}
+
 	public enum Type {
 		Artifact,
 		Creature,
@@ -85,7 +91,7 @@ public class Card implements Comparable<Card> {
 
 	public enum Layout {
 		normal, split, flip, transform, meld, leveler, saga, planar, scheme, vanguard, token,
-		double_faced_token, emblem, augment, aftermath, host, adventure;
+		double_faced_token, emblem, augment, aftermath, host, adventure, modal_dfc;
 	}
 
 	public enum Format {
